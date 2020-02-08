@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using System;
 
 namespace SuppressionCleanupTool
 {
@@ -11,10 +12,10 @@ namespace SuppressionCleanupTool
 
         public SuppressionRemoval(SyntaxNode newRoot, bool requiresWorkspaceDiagnostics, string removedText, Location removalLocation)
         {
-            NewRoot = newRoot;
+            NewRoot = newRoot ?? throw new ArgumentNullException(nameof(newRoot));
             RequiresWorkspaceDiagnostics = requiresWorkspaceDiagnostics;
-            RemovedText = removedText;
-            RemovalLocation = removalLocation;
+            RemovedText = removedText ?? throw new ArgumentNullException(nameof(removedText));
+            RemovalLocation = removalLocation ?? throw new ArgumentNullException(nameof(removalLocation));
         }
     }
 }
