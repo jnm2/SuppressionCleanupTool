@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.MSBuild;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -106,14 +107,14 @@ namespace SuppressionCleanupTool
             {
                 yield return new SuppressionRemoval(
                     syntaxRoot.ReplaceNode(variableDeclarator, variableDeclarator.WithInitializer(null)),
-                    requiresWorkspaceDiagnostics: false,
+                    requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
                     variableDeclarator.Initializer.ToString(),
                     variableDeclarator.Initializer.GetLocation());
             }
 
             yield return new SuppressionRemoval(
                 syntaxRoot.ReplaceNode(suppressionSyntax, suppressionSyntax.Operand),
-                requiresWorkspaceDiagnostics: false,
+                requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
                 suppressionSyntax.OperatorToken.ToString(),
                 suppressionSyntax.OperatorToken.GetLocation());
         }
@@ -123,10 +124,12 @@ namespace SuppressionCleanupTool
             if (suppressionSyntax.ErrorCodes.Count != 1)
                 throw new NotImplementedException("TODO: remove error codes one at a time");
 
+            var diagnosticId = Facts.GetPragmaErrorCode(suppressionSyntax.ErrorCodes[0]);
+
             var matchingRestorePragma = Facts.FindPragmaWarningRestore(
                 syntaxRoot,
                 startPosition: suppressionSyntax.Span.End,
-                errorCode: Facts.GetPragmaErrorCode(suppressionSyntax.ErrorCodes[0]));
+                errorCode: diagnosticId);
 
             var nodesToRemove = matchingRestorePragma is { }
                 ? new[] { suppressionSyntax, matchingRestorePragma }
@@ -134,7 +137,7 @@ namespace SuppressionCleanupTool
 
             return new SuppressionRemoval(
                 syntaxRoot.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepExteriorTrivia),
-                requiresWorkspaceDiagnostics: true,
+                requiredAnalyzerDiagnosticIds: ImmutableArray.Create(diagnosticId),
                 suppressionSyntax.ToString(),
                 suppressionSyntax.GetLocation());
         }
