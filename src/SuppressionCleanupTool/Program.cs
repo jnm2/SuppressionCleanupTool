@@ -20,6 +20,9 @@ namespace SuppressionCleanupTool
 
             var originalSolution = await workspace.OpenSolutionAsync(args[0]);
 
+            // Enables dynamically-loaded analyzers to resolve their dependencies.
+            Utils.ResolveAssembliesWithVersionRollforward(AppDomain.CurrentDomain);
+
             var diagnosticsComparer = new SolutionWideDiagnosticsComparer(originalSolution);
 
             var newSolution = originalSolution;

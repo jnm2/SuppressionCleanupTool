@@ -70,7 +70,7 @@ namespace SuppressionCleanupTool
             var compilation = await project.GetCompilationAsync().ConfigureAwait(false);
 
             var analyzers = project.AnalyzerReferences
-                .SelectMany(reference => reference.LoadAnalyzersWithVersionResolution(project.Language))
+                .SelectMany(reference => reference.GetAnalyzers(project.Language))
                 .ToImmutableArray();
 
             if (!analyzers.Any())
