@@ -20,10 +20,14 @@ namespace SuppressionCleanupTool
 
             using var workspace = MSBuildWorkspace.Create();
 
-            var originalSolution = await workspace.OpenSolutionAsync(args[0]);
+            var solutionPath = args[0];
+            Console.WriteLine($"Loading {solutionPath}...");
+            var originalSolution = await workspace.OpenSolutionAsync(solutionPath);
 
             // Enables dynamically-loaded analyzers to resolve their dependencies.
             Utils.ResolveAssembliesWithVersionRollforward(AppDomain.CurrentDomain);
+
+            Console.WriteLine($"Searching for unnecessary suppressions...");
 
             var diagnosticsComparer = new SolutionDiagnosticsComparer(originalSolution);
 
