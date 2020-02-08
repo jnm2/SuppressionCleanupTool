@@ -54,7 +54,10 @@ namespace SuppressionCleanupTool
                         {
                             var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
 
-                            if (!await diagnosticsComparer.HasNewDiagnosticsAsync(modifiedDocument.Project.Solution))
+                            if (!await diagnosticsComparer.HasNewDiagnosticsAsync(
+                                modifiedDocument.Project.Solution,
+                                includeCompilerDiagnostics: true,
+                                includeAnalyzerDiagnostics: removal.RequiredAnalyzerDiagnosticIds.Any())) // TODO: only run needed analyzers
                             {
                                 syntaxRoot = removal.NewRoot;
                                 document = modifiedDocument;
