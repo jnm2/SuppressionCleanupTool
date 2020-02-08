@@ -13,25 +13,23 @@ namespace SuppressionCleanupTool
         private readonly Solution baselineSolution;
 
         // TODO: Lazily calculate compiler diagnostics and analyzer ID-specific diagnostics separately.
-        private readonly Lazy<Task<ImmutableHashSet<(string Id, Location location)>>> baselineDiagnostics;
+        private readonly Lazy<Task<ImmutableDictionary<(string Id, SyntaxTree SyntaxTree), int>>> baselineDiagnosticCounts;
 
         public SolutionWideDiagnosticsComparer(Solution baselineSolution)
         {
             this.baselineSolution = baselineSolution ?? throw new ArgumentNullException(nameof(baselineSolution));
 
-            baselineDiagnostics = new Lazy<Task<ImmutableHashSet<(string Id, Location location)>>>(GetBaselineDiagnosticsAsync);
+            baselineDiagnosticCounts = new Lazy<Task<ImmutableDictionary<(string Id, SyntaxTree SyntaxTree), int>>>(GetBaselineDiagnosticCountsAsync);
         }
 
-        // TODO: Stop using file location because editing the file above causes existing diagnostics to show up with a
-        // new location.
-        private static (string Id, Location Location) GetDiagnosticKey(Diagnostic diagnostic)
+        private static (string Id, SyntaxTree SyntaxTree) GetDiagnosticCountKey(Diagnostic diagnostic)
         {
-            return (diagnostic.Id, diagnostic.Location);
+            return (diagnostic.Id, diagnostic.Location.SourceTree);
         }
 
-        private async Task<ImmutableHashSet<(string Id, Location location)>> GetBaselineDiagnosticsAsync()
+        private async Task<ImmutableDictionary<(string Id, SyntaxTree SyntaxTree), int>> GetBaselineDiagnosticCountsAsync()
         {
-            var builder = ImmutableHashSet.CreateBuilder<(string Id, Location location)>();
+            var builder = ImmutableDictionary.CreateBuilder<(string Id, SyntaxTree SyntaxTree), int>();
 
             foreach (var project in baselineSolution.Projects)
             {
@@ -39,7 +37,12 @@ namespace SuppressionCleanupTool
 
                 foreach (var diagnostic in diagnostics)
                 {
-                    builder.Add(GetDiagnosticKey(diagnostic));
+                    var key = GetDiagnosticCountKey(diagnostic);
+
+                    if (builder.TryGetValue(key, out var count))
+                        builder[key] = count + 1;
+                    else
+                        builder.Add(key, 1);
                 }
             }
 
@@ -48,17 +51,31 @@ namespace SuppressionCleanupTool
 
         public async Task<bool> HasNewDiagnosticsAsync(Solution updatedSolution)
         {
+            var remainingCounts = (ImmutableDictionary<(string Id, SyntaxTree SyntaxTree), int>.Builder)null;
+
             foreach (var project in updatedSolution.Projects)
             {
-                var (baselineDiagnostics, updatedDiagnostics) = await (
-                    this.baselineDiagnostics.Value,
+                var (baselineDiagnosticCounts, updatedDiagnostics) = await (
+                    this.baselineDiagnosticCounts.Value,
                     GetDiagnosticsAsync(project)
                 ).ConfigureAwait(false);
 
                 foreach (var diagnostic in updatedDiagnostics)
                 {
-                    if (!baselineDiagnostics.Contains(GetDiagnosticKey(diagnostic)))
-                        return true;
+                    var key = GetDiagnosticCountKey(diagnostic);
+
+                    if (remainingCounts is null)
+                    {
+                        if (!baselineDiagnosticCounts.ContainsKey(key))
+                            return true;
+
+                        remainingCounts = baselineDiagnosticCounts.ToBuilder();
+                    }
+
+                    var count = remainingCounts.GetValueOrDefault(key);
+                    if (count == 0) return true;
+
+                    remainingCounts[key] = count - 1;
                 }
             }
 
