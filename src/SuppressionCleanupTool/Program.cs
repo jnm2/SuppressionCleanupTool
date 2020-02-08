@@ -59,18 +59,15 @@ namespace SuppressionCleanupTool
                         {
                             var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
 
-                            if (await diagnosticsComparer.HasNewDiagnosticsAsync(modifiedDocument, fromAnalyzers: false, CancellationToken.None))
+                            if (await diagnosticsComparer.HasNewCompileDiagnosticsAsync(modifiedDocument, CancellationToken.None))
                             {
                                 continue;
                             }
 
-                            if (removal.RequiredAnalyzerDiagnosticIds.Any())
+                            if (removal.RequiredAnalyzerDiagnosticIds.Any()
+                                && await diagnosticsComparer.HasNewAnalyzerDiagnosticsAsync(modifiedDocument, removal.RequiredAnalyzerDiagnosticIds, CancellationToken.None))
                             {
-                                // TODO: only run needed analyzers
-                                if (await diagnosticsComparer.HasNewDiagnosticsAsync(modifiedDocument, fromAnalyzers: true, CancellationToken.None))
-                                {
-                                    continue;
-                                }
+                                continue;
                             }
 
                             syntaxRoot = removal.NewRoot;

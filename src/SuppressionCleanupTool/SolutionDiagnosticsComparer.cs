@@ -22,11 +22,28 @@ namespace SuppressionCleanupTool
             this.baselineSolution = baselineSolution ?? throw new ArgumentNullException(nameof(baselineSolution));
         }
 
-        public async Task<bool> HasNewDiagnosticsAsync(Document updatedDocument, bool fromAnalyzers, CancellationToken cancellationToken)
+        public Task<bool> HasNewCompileDiagnosticsAsync(Document updatedDocument, CancellationToken cancellationToken)
         {
+            return HasNewDiagnosticsAsync(updatedDocument, fromAnalyzers: false, analyzerDiagnosticIdFilter: default, cancellationToken);
+        }
+
+        public Task<bool> HasNewAnalyzerDiagnosticsAsync(Document updatedDocument, ImmutableArray<string> diagnosticIdFilter, CancellationToken cancellationToken)
+        {
+            return HasNewDiagnosticsAsync(updatedDocument, fromAnalyzers: true, diagnosticIdFilter, cancellationToken);
+        }
+
+        private async Task<bool> HasNewDiagnosticsAsync(
+            Document updatedDocument,
+            bool fromAnalyzers,
+            ImmutableArray<string>? analyzerDiagnosticIdFilter,
+            CancellationToken cancellationToken)
+        {
+            if (fromAnalyzers && analyzerDiagnosticIdFilter is { IsDefaultOrEmpty: true })
+                return false;
+
             var (baselineCounts, updatedDiagnostics) = await (
                 GetBaselineDiagnosticsAsync(updatedDocument.Id, fromAnalyzers),
-                GetDiagnosticsAsync(updatedDocument, fromAnalyzers, filterSpan: null, cancellationToken)
+                GetDiagnosticsAsync(updatedDocument, fromAnalyzers, analyzerDiagnosticIdFilter, filterSpan: null, cancellationToken)
             ).ConfigureAwait(false);
 
             var remainingCounts = (OccurrencesByDiagnosticId.Builder)null;
@@ -57,7 +74,7 @@ namespace SuppressionCleanupTool
                 if (!baselineDiagnosticCounts.TryGetValue((documentId, fromAnalyzers), out var task))
                 {
                     var document = baselineSolution.GetDocument(documentId);
-                    task = GetOccurrencesByDiagnosticIdAsync(document, fromAnalyzers, CancellationToken.None);
+                    task = GetOccurrencesByDiagnosticIdAsync(document, fromAnalyzers, analyzerDiagnosticIdFilter: null, CancellationToken.None);
                     baselineDiagnosticCounts.Add((documentId, fromAnalyzers), task);
                 }
 
@@ -65,32 +82,36 @@ namespace SuppressionCleanupTool
             }
         }
 
-        private async Task<OccurrencesByDiagnosticId> GetOccurrencesByDiagnosticIdAsync(Document document, bool fromAnalyzers, CancellationToken cancellationToken)
+        private async Task<OccurrencesByDiagnosticId> GetOccurrencesByDiagnosticIdAsync(
+            Document document,
+            bool fromAnalyzers,
+            ImmutableArray<string>? analyzerDiagnosticIdFilter,
+            CancellationToken cancellationToken)
         {
-            var diagnostics = await GetDiagnosticsAsync(document, fromAnalyzers, filterSpan: null, cancellationToken).ConfigureAwait(false);
+            var diagnostics = await GetDiagnosticsAsync(document, fromAnalyzers, analyzerDiagnosticIdFilter, filterSpan: null, cancellationToken).ConfigureAwait(false);
 
             return diagnostics.GroupToImmutableDictionary(
                 diagnostic => diagnostic.Id,
                 diagnostics => diagnostics.Count());
         }
 
-        private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(Document document, bool fromAnalyzers, TextSpan? filterSpan, CancellationToken cancellationToken)
+        private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(
+            Document document,
+            bool fromAnalyzers,
+            ImmutableArray<string>? analyzerDiagnosticIdFilter,
+            TextSpan? filterSpan,
+            CancellationToken cancellationToken)
         {
             if (fromAnalyzers)
             {
-                var project = document.Project;
-
-                var analyzers = project.AnalyzerReferences
-                    .SelectMany(reference => reference.GetAnalyzers(project.Language))
-                    .ToImmutableArray();
-
+                var analyzers = GetApplicableAnalyzers(document.Project, analyzerDiagnosticIdFilter);
                 if (!analyzers.Any()) return ImmutableArray<Diagnostic>.Empty;
 
                 var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
                 var compilationWithAnalyzers = semanticModel.Compilation.WithAnalyzers(
                     analyzers,
-                    project.AnalyzerOptions,
+                    document.Project.AnalyzerOptions,
                     cancellationToken);
 
                 var (syntaxDiagnostics, semanticDiagnostics) = await (
@@ -102,10 +123,26 @@ namespace SuppressionCleanupTool
             }
             else
             {
+                if (analyzerDiagnosticIdFilter is object)
+                    throw new ArgumentException("Analyzer diagnostic ID filter must not be specified unless fromAnalyzers is true.");
+
                 var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
                 return semanticModel.GetDiagnostics(filterSpan, cancellationToken);
             }
+        }
+
+        private static ImmutableArray<DiagnosticAnalyzer> GetApplicableAnalyzers(Project project, ImmutableArray<string>? diagnosticIdFilter)
+        {
+            var analyzers = project.AnalyzerReferences.SelectMany(reference => reference.GetAnalyzers(project.Language));
+
+            if (diagnosticIdFilter is { } specifiedFilter)
+            {
+                analyzers = analyzers.Where(analyzer =>
+                    analyzer.SupportedDiagnostics.Any(descriptor => specifiedFilter.Contains(descriptor.Id)));
+            }
+
+            return analyzers.ToImmutableArray();
         }
     }
 }
