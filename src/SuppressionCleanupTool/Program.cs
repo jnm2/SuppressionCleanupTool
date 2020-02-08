@@ -120,8 +120,20 @@ namespace SuppressionCleanupTool
 
         private static SuppressionRemoval GetPotentialRemoval(SyntaxNode syntaxRoot, PragmaWarningDirectiveTriviaSyntax suppressionSyntax)
         {
+            if (suppressionSyntax.ErrorCodes.Count != 1)
+                throw new NotImplementedException("TODO: remove error codes one at a time");
+
+            var matchingRestorePragma = Facts.FindPragmaWarningRestore(
+                syntaxRoot,
+                startPosition: suppressionSyntax.Span.End,
+                errorCode: Facts.GetPragmaErrorCode(suppressionSyntax.ErrorCodes[0]));
+
+            var nodesToRemove = matchingRestorePragma is { }
+                ? new[] { suppressionSyntax, matchingRestorePragma }
+                : new[] { suppressionSyntax };
+
             return new SuppressionRemoval(
-                syntaxRoot.RemoveNode(suppressionSyntax, SyntaxRemoveOptions.KeepExteriorTrivia),
+                syntaxRoot.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepExteriorTrivia),
                 requiresWorkspaceDiagnostics: true,
                 suppressionSyntax.ToString(),
                 suppressionSyntax.GetLocation());
