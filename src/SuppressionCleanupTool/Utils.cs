@@ -1,5 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SuppressionCleanupTool
 {
@@ -25,6 +30,20 @@ namespace SuppressionCleanupTool
             }
 
             return null;
+        }
+
+        public static ImmutableDictionary<TKey, TValue> GroupToImmutableDictionary<TSource, TKey, TValue>(
+            this IEnumerable<TSource> source,
+            Func<TSource, TKey> keySelector,
+            Func<IEnumerable<TSource>, TValue> valueSelector,
+            IEqualityComparer<TKey> keyComparer = null)
+        {
+            return ImmutableDictionary.CreateRange(
+                keyComparer,
+                source.GroupBy(
+                    keySelector,
+                    (key, values) => new KeyValuePair<TKey, TValue>(key, valueSelector.Invoke(values)),
+                    keyComparer));
         }
     }
 }

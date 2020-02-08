@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SuppressionCleanupTool
@@ -24,7 +25,7 @@ namespace SuppressionCleanupTool
             // Enables dynamically-loaded analyzers to resolve their dependencies.
             Utils.ResolveAssembliesWithVersionRollforward(AppDomain.CurrentDomain);
 
-            var diagnosticsComparer = new SolutionWideDiagnosticsComparer(originalSolution);
+            var diagnosticsComparer = new SolutionDiagnosticsComparer(originalSolution);
 
             var newSolution = originalSolution;
 
@@ -54,18 +55,26 @@ namespace SuppressionCleanupTool
                         {
                             var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
 
-                            if (!await diagnosticsComparer.HasNewDiagnosticsAsync(
-                                modifiedDocument.Project.Solution,
-                                includeCompilerDiagnostics: true,
-                                includeAnalyzerDiagnostics: removal.RequiredAnalyzerDiagnosticIds.Any())) // TODO: only run needed analyzers
+                            if (await diagnosticsComparer.HasNewDiagnosticsAsync(modifiedDocument, fromAnalyzers: false, CancellationToken.None))
                             {
-                                syntaxRoot = removal.NewRoot;
-                                document = modifiedDocument;
-
-                                var fileLineSpan = removal.RemovalLocation.GetLineSpan();
-                                Console.WriteLine($"Removed '{removal.RemovedText}' from {fileLineSpan.Path} ({fileLineSpan.StartLinePosition})");
-                                break;
+                                continue;
                             }
+
+                            if (removal.RequiredAnalyzerDiagnosticIds.Any())
+                            {
+                                // TODO: only run needed analyzers
+                                if (await diagnosticsComparer.HasNewDiagnosticsAsync(modifiedDocument, fromAnalyzers: true, CancellationToken.None))
+                                {
+                                    continue;
+                                }
+                            }
+
+                            syntaxRoot = removal.NewRoot;
+                            document = modifiedDocument;
+
+                            var fileLineSpan = removal.RemovalLocation.GetLineSpan();
+                            Console.WriteLine($"Removed '{removal.RemovedText}' from {fileLineSpan.Path} ({fileLineSpan.StartLinePosition})");
+                            break;
                         }
                     }
 
