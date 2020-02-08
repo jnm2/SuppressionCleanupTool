@@ -1,10 +1,9 @@
-﻿using System;
+﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace SuppressionCleanupTool
 {
@@ -44,6 +43,14 @@ namespace SuppressionCleanupTool
                     keySelector,
                     (key, values) => new KeyValuePair<TKey, TValue>(key, valueSelector.Invoke(values)),
                     keyComparer));
+        }
+
+        public static void UpdateWorkspace(Workspace workspace, ref Solution updatedSolution)
+        {
+            if (!workspace.TryApplyChanges(updatedSolution))
+                throw new NotImplementedException("Update failed");
+
+            updatedSolution = workspace.CurrentSolution;
         }
     }
 }

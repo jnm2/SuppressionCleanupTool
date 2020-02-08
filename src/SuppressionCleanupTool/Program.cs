@@ -80,22 +80,14 @@ namespace SuppressionCleanupTool
 
                     newSolution = document.Project.Solution;
 
-                    UpdateWorkspace(workspace, ref newSolution);
+                    Utils.UpdateWorkspace(workspace, ref newSolution);
                 }
             }
 
             if (newSolution == originalSolution)
                 Console.WriteLine("No suppressions found that the tool could remove.");
             else
-                UpdateWorkspace(workspace, ref newSolution);
-        }
-
-        private static void UpdateWorkspace(Workspace workspace, ref Solution updatedSolution)
-        {
-            if (!workspace.TryApplyChanges(updatedSolution))
-                throw new NotImplementedException("Update failed");
-
-            updatedSolution = workspace.CurrentSolution;
+                Utils.UpdateWorkspace(workspace, ref newSolution);
         }
 
         private static IEnumerable<SuppressionRemoval> GetPotentialRemovals(SyntaxNode syntaxRoot, SyntaxNode suppressionSyntax)
