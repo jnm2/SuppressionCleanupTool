@@ -1,12 +1,6 @@
 ﻿using Microsoft.Build.Locator;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.MSBuild;
 using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,40 +37,13 @@ namespace SuppressionCleanupTool
                     var document = newSolution.GetDocument(documentId);
                     if (document is null) continue;
 
-                    var syntaxRoot = await document.GetSyntaxRootAsync();
-                    if (syntaxRoot is null) continue;
-
-                    var suppressions = SuppressionFixer.FindSuppressions(syntaxRoot);
-
-                    syntaxRoot = syntaxRoot.TrackNodes(suppressions);
-
-                    foreach (var suppressionSyntax in suppressions)
+                    var newDocument = await SuppressionFixer.FixAllInDocumentAsync(document, diagnosticsComparer, removal =>
                     {
-                        foreach (var removal in SuppressionFixer.GetPotentialRemovals(syntaxRoot, syntaxRoot.GetCurrentNode(suppressionSyntax)))
-                        {
-                            var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
+                        var fileLineSpan = removal.RemovalLocation.GetLineSpan();
+                        Console.WriteLine($"Removed '{removal.RemovedText}' from {fileLineSpan.Path} ({fileLineSpan.StartLinePosition})");
+                    }, CancellationToken.None);
 
-                            if (await diagnosticsComparer.HasNewCompileDiagnosticsAsync(modifiedDocument, CancellationToken.None))
-                            {
-                                continue;
-                            }
-
-                            if (removal.RequiredAnalyzerDiagnosticIds.Any()
-                                && await diagnosticsComparer.HasNewAnalyzerDiagnosticsAsync(modifiedDocument, removal.RequiredAnalyzerDiagnosticIds, CancellationToken.None))
-                            {
-                                continue;
-                            }
-
-                            syntaxRoot = removal.NewRoot;
-                            document = modifiedDocument;
-
-                            var fileLineSpan = removal.RemovalLocation.GetLineSpan();
-                            Console.WriteLine($"Removed '{removal.RemovedText}' from {fileLineSpan.Path} ({fileLineSpan.StartLinePosition})");
-                            break;
-                        }
-                    }
-
-                    newSolution = document.Project.Solution;
+                    newSolution = newDocument.Project.Solution;
 
                     Utils.UpdateWorkspace(workspace, ref newSolution);
                 }

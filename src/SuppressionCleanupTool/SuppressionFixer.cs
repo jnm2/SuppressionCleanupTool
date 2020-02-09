@@ -5,11 +5,54 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SuppressionCleanupTool
 {
     public static class SuppressionFixer
     {
+        public static async Task<Document> FixAllInDocumentAsync(
+            Document document,
+            SolutionDiagnosticsComparer diagnosticsComparer,
+            Action<SuppressionRemoval> afterRemoval,
+            CancellationToken cancellationToken)
+        {
+            var syntaxRoot = await document.GetSyntaxRootAsync();
+            if (syntaxRoot is null) return document;
+
+            var suppressions = FindSuppressions(syntaxRoot);
+
+            syntaxRoot = syntaxRoot.TrackNodes(suppressions);
+
+            foreach (var suppressionSyntax in suppressions)
+            {
+                foreach (var removal in GetPotentialRemovals(syntaxRoot, syntaxRoot.GetCurrentNode(suppressionSyntax)))
+                {
+                    var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
+
+                    if (await diagnosticsComparer.HasNewCompileDiagnosticsAsync(modifiedDocument, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
+                    if (removal.RequiredAnalyzerDiagnosticIds.Any()
+                        && await diagnosticsComparer.HasNewAnalyzerDiagnosticsAsync(modifiedDocument, removal.RequiredAnalyzerDiagnosticIds, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
+                    syntaxRoot = removal.NewRoot;
+                    document = modifiedDocument;
+
+                    afterRemoval(removal);
+                    break;
+                }
+            }
+
+            return document;
+        }
+
         public static IEnumerable<SyntaxNode> FindSuppressions(SyntaxNode syntaxRoot)
         {
             var nullabilitySuppressions = syntaxRoot.DescendantNodes()
