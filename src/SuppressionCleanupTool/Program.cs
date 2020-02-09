@@ -141,7 +141,7 @@ namespace SuppressionCleanupTool
                 : new[] { suppressionSyntax };
 
             return new SuppressionRemoval(
-                syntaxRoot.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepExteriorTrivia),
+                syntaxRoot.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepNoTrivia),
                 requiredAnalyzerDiagnosticIds: ImmutableArray.Create(diagnosticId),
                 suppressionSyntax.ToString(),
                 suppressionSyntax.GetLocation());
