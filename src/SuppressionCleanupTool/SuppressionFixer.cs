@@ -25,6 +25,9 @@ namespace SuppressionCleanupTool
 
         public static IEnumerable<SuppressionRemoval> GetPotentialRemovals(SyntaxNode syntaxRoot, SyntaxNode suppressionSyntax)
         {
+            if (syntaxRoot is null) throw new ArgumentNullException(nameof(syntaxRoot));
+            if (suppressionSyntax is null) throw new ArgumentNullException(nameof(suppressionSyntax));
+
             if (!syntaxRoot.Contains(suppressionSyntax))
                 throw new ArgumentException("The specified suppression syntax is not contained in the specified syntax root.");
 
