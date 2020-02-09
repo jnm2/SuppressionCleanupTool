@@ -32,12 +32,7 @@ namespace SuppressionCleanupTool.Tests
 
         private static async Task<bool> HasNewAnalyzerDiagnosticsAsync(string originalDocument, string updatedDocument, string diagnosticId)
         {
-            using var workspace = new AdhocWorkspace();
-
-            workspace.AddSolution(SolutionInfo.Create(SolutionId.CreateNewId(), VersionStamp.Create()));
-
-            var document = workspace.AddProject("TestProject", LanguageNames.CSharp)
-                .AddDocument("TestDocument.cs", originalDocument);
+            using var workspace = TestUtils.CreateSingleDocumentWorkspace(originalDocument, out var document);
 
             var comparer = new SolutionDiagnosticsComparer(document.Project.Solution);
 
