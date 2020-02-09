@@ -1,20 +1,24 @@
-﻿namespace SuppressionCleanupTool.Tests
+﻿using System.Collections.Generic;
+
+namespace SuppressionCleanupTool.Tests
 {
     internal static class TestSyntax
     {
-        public const string TriggeringIDE0031 = @"
+        public static IReadOnlyDictionary<string, string> ByTriggeredDiagnosticId { get; } = new Dictionary<string, string>
+        {
+            ["IDE0031"] = @"
 class C
 {
     string M(object obj) => obj is null ? null : obj.ToString();
-}";
+}",
 
-        public const string TriggeringIDE0044 = @"
+            ["IDE0044"] = @"
 class C
 {
     int f = 4;
-}";
+}",
 
-        public const string TriggeringIDE0062 = @"
+            ["IDE0062"] = @"
 class C
 {
     void M()
@@ -22,6 +26,7 @@ class C
         LocalFunction();
         void LocalFunction() { }
     }
-}";
+}",
+        };
     }
 }

@@ -10,11 +10,13 @@ namespace SuppressionCleanupTool.Tests
 {
     public static class SolutionDiagnosticsComparerTests
     {
-        [TestCase("IDE0031", TestSyntax.TriggeringIDE0031)]
-        [TestCase("IDE0044", TestSyntax.TriggeringIDE0044)]
-        [TestCase("IDE0062", TestSyntax.TriggeringIDE0062)]
-        public static async Task Document_options_are_provided_so_that_analyzers_return_diagnostics_as_normal(string diagnosticId, string syntaxTriggeringDiagnostic)
+        [TestCase("IDE0031")]
+        [TestCase("IDE0044")]
+        [TestCase("IDE0062")]
+        public static async Task Document_options_are_provided_so_that_analyzers_return_diagnostics_as_normal(string diagnosticId)
         {
+            var syntaxTriggeringDiagnostic = TestSyntax.ByTriggeredDiagnosticId[diagnosticId];
+
             var syntaxTriggeringDiagnosticWithPragma = "#pragma warning disable " + diagnosticId + Environment.NewLine + syntaxTriggeringDiagnostic;
 
             var newDiagnostics = await HasNewAnalyzerDiagnosticsAsync(
