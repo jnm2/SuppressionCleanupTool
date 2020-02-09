@@ -52,5 +52,11 @@ namespace SuppressionCleanupTool
 
             updatedSolution = workspace.CurrentSolution;
         }
+
+        public static T WithAppendedTrailingTrivia<T>(this T node, SyntaxTriviaList trivia)
+            where T : SyntaxNode
+        {
+            return trivia.Count == 0 ? node : node.WithTrailingTrivia(node.GetTrailingTrivia().Concat(trivia));
+        }
     }
 }

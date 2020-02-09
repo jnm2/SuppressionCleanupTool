@@ -53,7 +53,7 @@ namespace SuppressionCleanupTool
             }
 
             yield return new SuppressionRemoval(
-                syntaxRoot.ReplaceNode(suppressionSyntax, suppressionSyntax.Operand),
+                syntaxRoot.ReplaceNode(suppressionSyntax, suppressionSyntax.Operand.WithAppendedTrailingTrivia(suppressionSyntax.GetTrailingTrivia())),
                 requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
                 suppressionSyntax.OperatorToken.ToString(),
                 suppressionSyntax.OperatorToken.GetLocation());
