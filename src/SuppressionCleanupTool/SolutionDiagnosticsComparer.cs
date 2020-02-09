@@ -109,10 +109,10 @@ namespace SuppressionCleanupTool
 
                 var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
 
-                var compilationWithAnalyzers = semanticModel.Compilation.WithAnalyzers(
-                    analyzers,
-                    document.Project.AnalyzerOptions,
-                    cancellationToken);
+                var analyzerOptions = Utils.TryCreateWorkspaceAnalyzerOptions(document.Project.AnalyzerOptions, document.Project.Solution)
+                    ?? throw new NotSupportedException("Cannot expose document options to analyzers to allow them to run as normal.");
+
+                var compilationWithAnalyzers = semanticModel.Compilation.WithAnalyzers(analyzers, analyzerOptions, cancellationToken);
 
                 var (syntaxDiagnostics, semanticDiagnostics) = await (
                     compilationWithAnalyzers.GetAnalyzerSyntaxDiagnosticsAsync(semanticModel.SyntaxTree, cancellationToken),
