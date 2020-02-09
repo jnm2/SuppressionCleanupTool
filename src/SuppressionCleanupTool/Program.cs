@@ -43,19 +43,13 @@ namespace SuppressionCleanupTool
 
                     var syntaxRoot = await document.GetSyntaxRootAsync();
 
-                    var suppressionOperators = syntaxRoot.DescendantNodes()
-                        .Where(node => node.IsKind(SyntaxKind.SuppressNullableWarningExpression))
-                        .Concat(syntaxRoot.DescendantTrivia()
-                            .Where(t => t.IsKind(SyntaxKind.PragmaWarningDirectiveTrivia))
-                            .Select(t => (PragmaWarningDirectiveTriviaSyntax)t.GetStructure())
-                            .Where(s => s.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword)))
-                        .ToList();
+                    var suppressions = SuppressionFixer.FindSuppressions(syntaxRoot);
 
-                    syntaxRoot = syntaxRoot.TrackNodes(suppressionOperators);
+                    syntaxRoot = syntaxRoot.TrackNodes(suppressions);
 
-                    foreach (var suppressionSyntax in suppressionOperators)
+                    foreach (var suppressionSyntax in suppressions)
                     {
-                        foreach (var removal in GetPotentialRemovals(syntaxRoot, syntaxRoot.GetCurrentNode(suppressionSyntax)))
+                        foreach (var removal in SuppressionFixer.GetPotentialRemovals(syntaxRoot, syntaxRoot.GetCurrentNode(suppressionSyntax)))
                         {
                             var modifiedDocument = document.WithSyntaxRoot(removal.NewRoot);
 
@@ -89,62 +83,6 @@ namespace SuppressionCleanupTool
                 Console.WriteLine("No suppressions found that the tool could remove.");
             else
                 Utils.UpdateWorkspace(workspace, ref newSolution);
-        }
-
-        private static IEnumerable<SuppressionRemoval> GetPotentialRemovals(SyntaxNode syntaxRoot, SyntaxNode suppressionSyntax)
-        {
-            return suppressionSyntax.Kind() switch
-            {
-                SyntaxKind.SuppressNullableWarningExpression =>
-                    GetPotentialRemovals(syntaxRoot, (PostfixUnaryExpressionSyntax)suppressionSyntax),
-
-                SyntaxKind.PragmaWarningDirectiveTrivia =>
-                    new[] { GetPotentialRemoval(syntaxRoot, (PragmaWarningDirectiveTriviaSyntax)suppressionSyntax) },
-
-                _ => throw new ArgumentException("Unexpected syntax kind", nameof(suppressionSyntax)),
-            };
-        }
-
-        private static IEnumerable<SuppressionRemoval> GetPotentialRemovals(SyntaxNode syntaxRoot, PostfixUnaryExpressionSyntax suppressionSyntax)
-        {
-            if (Facts.IsNullOrDefaultConstant(suppressionSyntax.Operand)
-                && Facts.IsVariableInitializerValue(suppressionSyntax, out var variableDeclarator))
-            {
-                yield return new SuppressionRemoval(
-                    syntaxRoot.ReplaceNode(variableDeclarator, variableDeclarator.WithInitializer(null)),
-                    requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
-                    variableDeclarator.Initializer.ToString(),
-                    variableDeclarator.Initializer.GetLocation());
-            }
-
-            yield return new SuppressionRemoval(
-                syntaxRoot.ReplaceNode(suppressionSyntax, suppressionSyntax.Operand),
-                requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
-                suppressionSyntax.OperatorToken.ToString(),
-                suppressionSyntax.OperatorToken.GetLocation());
-        }
-
-        private static SuppressionRemoval GetPotentialRemoval(SyntaxNode syntaxRoot, PragmaWarningDirectiveTriviaSyntax suppressionSyntax)
-        {
-            if (suppressionSyntax.ErrorCodes.Count != 1)
-                throw new NotImplementedException("TODO: remove error codes one at a time");
-
-            var diagnosticId = Facts.GetPragmaErrorCode(suppressionSyntax.ErrorCodes[0]);
-
-            var matchingRestorePragma = Facts.FindPragmaWarningRestore(
-                syntaxRoot,
-                startPosition: suppressionSyntax.Span.End,
-                errorCode: diagnosticId);
-
-            var nodesToRemove = matchingRestorePragma is { }
-                ? new[] { suppressionSyntax, matchingRestorePragma }
-                : new[] { suppressionSyntax };
-
-            return new SuppressionRemoval(
-                syntaxRoot.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepNoTrivia),
-                requiredAnalyzerDiagnosticIds: ImmutableArray.Create(diagnosticId),
-                suppressionSyntax.ToString(),
-                suppressionSyntax.GetLocation());
         }
     }
 }
