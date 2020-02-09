@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace SuppressionCleanupTool
@@ -21,7 +22,7 @@ namespace SuppressionCleanupTool
             }
         }
 
-        public static bool IsVariableInitializerValue(SyntaxNode syntaxNode, out VariableDeclaratorSyntax variableDeclarator)
+        public static bool IsVariableInitializerValue(SyntaxNode syntaxNode, [NotNullWhen(true)] out VariableDeclaratorSyntax? variableDeclarator)
         {
             variableDeclarator = (syntaxNode.Parent as EqualsValueClauseSyntax)?.Parent as VariableDeclaratorSyntax;
 

@@ -16,9 +16,11 @@ namespace SuppressionCleanupTool
             appDomain.AssemblyResolve += OnAssemblyResolve;
         }
 
-        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs e)
+        private static Assembly? OnAssemblyResolve(object? sender, ResolveEventArgs e)
         {
-            var requestedName = new AssemblyName(e.Name);
+            // Workaround for https://github.com/dotnet/runtime/issues/30997
+            //                                         ↓
+            var requestedName = new AssemblyName(e.Name!);
             if (requestedName.Version is { })
             {
                 var anyVersion = (AssemblyName)requestedName.Clone();
@@ -37,7 +39,7 @@ namespace SuppressionCleanupTool
             this IEnumerable<TSource> source,
             Func<TSource, TKey> keySelector,
             Func<IEnumerable<TSource>, TValue> valueSelector,
-            IEqualityComparer<TKey> keyComparer = null)
+            IEqualityComparer<TKey>? keyComparer = null)
         {
             return ImmutableDictionary.CreateRange(
                 keyComparer,
@@ -61,7 +63,7 @@ namespace SuppressionCleanupTool
             return trivia.Count == 0 ? node : node.WithTrailingTrivia(node.GetTrailingTrivia().Concat(trivia));
         }
 
-        public static AnalyzerOptions TryCreateWorkspaceAnalyzerOptions(AnalyzerOptions options, Solution solution)
+        public static AnalyzerOptions? TryCreateWorkspaceAnalyzerOptions(AnalyzerOptions options, Solution solution)
         {
             if (Type.GetType("Microsoft.CodeAnalysis.Diagnostics.WorkspaceAnalyzerOptions, Microsoft.CodeAnalysis.Features") is { } workspaceAnalyzerOptionsType)
             {

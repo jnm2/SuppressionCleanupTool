@@ -48,7 +48,7 @@ namespace SuppressionCleanupTool
                 yield return new SuppressionRemoval(
                     syntaxRoot.ReplaceNode(variableDeclarator, variableDeclarator.WithInitializer(null)),
                     requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
-                    variableDeclarator.Initializer.ToString(),
+                    variableDeclarator.Initializer!.ToString(),
                     variableDeclarator.Initializer.GetLocation());
             }
 

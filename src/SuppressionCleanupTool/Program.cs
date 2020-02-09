@@ -36,12 +36,15 @@ namespace SuppressionCleanupTool
             foreach (var projectId in originalSolution.ProjectIds)
             {
                 var project = newSolution.GetProject(projectId);
+                if (project is null) continue;
 
                 foreach (var documentId in project.DocumentIds)
                 {
                     var document = newSolution.GetDocument(documentId);
+                    if (document is null) continue;
 
                     var syntaxRoot = await document.GetSyntaxRootAsync();
+                    if (syntaxRoot is null) continue;
 
                     var suppressions = SuppressionFixer.FindSuppressions(syntaxRoot);
 

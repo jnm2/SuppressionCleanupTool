@@ -46,7 +46,7 @@ namespace SuppressionCleanupTool
                 GetDiagnosticsAsync(updatedDocument, fromAnalyzers, analyzerDiagnosticIdFilter, filterSpan: null, cancellationToken)
             ).ConfigureAwait(false);
 
-            var remainingCounts = (OccurrencesByDiagnosticId.Builder)null;
+            var remainingCounts = (OccurrencesByDiagnosticId.Builder?)null;
 
             foreach (var diagnostic in updatedDiagnostics)
             {
@@ -73,8 +73,10 @@ namespace SuppressionCleanupTool
             {
                 if (!baselineDiagnosticCounts.TryGetValue((documentId, fromAnalyzers), out var task))
                 {
-                    var document = baselineSolution.GetDocument(documentId);
-                    task = GetOccurrencesByDiagnosticIdAsync(document, fromAnalyzers, analyzerDiagnosticIdFilter: null, CancellationToken.None);
+                    task = baselineSolution.GetDocument(documentId) is { } document
+                        ? GetOccurrencesByDiagnosticIdAsync(document, fromAnalyzers, analyzerDiagnosticIdFilter: null, CancellationToken.None)
+                        : Task.FromResult(OccurrencesByDiagnosticId.Empty);
+
                     baselineDiagnosticCounts.Add((documentId, fromAnalyzers), task);
                 }
 
@@ -107,7 +109,8 @@ namespace SuppressionCleanupTool
                 var analyzers = GetApplicableAnalyzers(document.Project, analyzerDiagnosticIdFilter);
                 if (!analyzers.Any()) return ImmutableArray<Diagnostic>.Empty;
 
-                var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+                var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false)
+                    ?? throw new ArgumentException("The document does not have a semantic model.", nameof(document));
 
                 var analyzerOptions = Utils.TryCreateWorkspaceAnalyzerOptions(document.Project.AnalyzerOptions, document.Project.Solution)
                     ?? throw new NotSupportedException("Cannot expose document options to analyzers to allow them to run as normal.");
@@ -126,7 +129,8 @@ namespace SuppressionCleanupTool
                 if (analyzerDiagnosticIdFilter is object)
                     throw new ArgumentException("Analyzer diagnostic ID filter must not be specified unless fromAnalyzers is true.");
 
-                var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
+                var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false)
+                    ?? throw new ArgumentException("The document does not have a semantic model.", nameof(document));
 
                 return semanticModel.GetDiagnostics(filterSpan, cancellationToken);
             }
