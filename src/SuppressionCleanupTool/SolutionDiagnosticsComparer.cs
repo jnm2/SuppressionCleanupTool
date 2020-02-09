@@ -134,7 +134,10 @@ namespace SuppressionCleanupTool
 
         private static ImmutableArray<DiagnosticAnalyzer> GetApplicableAnalyzers(Project project, ImmutableArray<string>? diagnosticIdFilter)
         {
-            var analyzers = project.AnalyzerReferences.SelectMany(reference => reference.GetAnalyzers(project.Language));
+            var analyzers =
+                BuiltInRoslynAnalyzers.CSharpReferences
+                .Concat(project.AnalyzerReferences)
+                .SelectMany(reference => reference.GetAnalyzers(project.Language));
 
             if (diagnosticIdFilter is { } specifiedFilter)
             {
