@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using Shouldly;
 using SuppressionCleanupTool.Tests.Properties;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,6 +32,20 @@ class C
         }
 
         [Test]
+        public static void Trivia_should_not_be_preserved_when_removing_field_initializer()
+        {
+            RemoveSingleSuppression(@"
+class C
+{
+    object f/*a*/=/*b*/null/*c*/!/*d*/;
+}", syntaxToRemove: "/*a*/=/*b*/null/*c*/!/*d*/").ShouldBe(@"
+class C
+{
+    object f;
+}");
+        }
+
+        [Test]
         public static async Task Multiple_enumeration_of_SyntaxNode_Descendants_should_not_be_used_because_it_triggers_Roslyn_bug()
         {
             // This file repros https://github.com/dotnet/roslyn/issues/41526.
@@ -46,11 +61,16 @@ class C
             var suppression = SuppressionFixer.FindSuppressions(syntaxRoot)
                 .ShouldHaveSingleItem($"Expected exactly one suppression in the compilation unit.");
 
-            var removal = SuppressionFixer.GetPotentialRemovals(syntaxRoot, suppression)
-                .Where(r => r.RemovedText == syntaxToRemove)
-                .ShouldHaveSingleItem($"Expected exactly one removal in the compilation unit with the removed text '{syntaxToRemove}'.");
+            var removals = SuppressionFixer.GetPotentialRemovals(syntaxRoot, suppression).ToList();
+            var matchingRemovals = removals.Where(r => r.RemovedText == syntaxToRemove).ToList();
+            if (matchingRemovals.Count != 1)
+            {
+                Assert.Fail(
+                    $"Expected exactly one removal in the compilation unit with the removed text '{syntaxToRemove}', but options were:" + Environment.NewLine
+                    + string.Join(Environment.NewLine, removals.Select(r => r.RemovedText)));
+            }
 
-            return removal.NewRoot.ToFullString();
+            return matchingRemovals.Single().NewRoot.ToFullString();
         }
 
         private static async Task<string> FixAllInSingleDocumentWorkspaceAsync(string documentText)

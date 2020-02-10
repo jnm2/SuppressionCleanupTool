@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -91,10 +92,18 @@ namespace SuppressionCleanupTool
             if (Facts.IsNullOrDefaultConstant(suppressionSyntax.Operand)
                 && Facts.IsVariableInitializerValue(suppressionSyntax, out var variableDeclarator))
             {
+                var previousToken = variableDeclarator.Initializer!.GetFirstToken().GetPreviousToken();
+
+                var replacement = variableDeclarator
+                    .ReplaceToken(previousToken, previousToken.WithTrailingTrivia(SyntaxTriviaList.Empty))
+                    .WithInitializer(null);
+
+                var removedText = previousToken.TrailingTrivia.ToFullString() + variableDeclarator.Initializer.ToFullString();
+
                 yield return new SuppressionRemoval(
-                    syntaxRoot.ReplaceNode(variableDeclarator, variableDeclarator.WithInitializer(null)),
+                    syntaxRoot.ReplaceNode(variableDeclarator, replacement),
                     requiredAnalyzerDiagnosticIds: ImmutableArray<string>.Empty,
-                    variableDeclarator.Initializer!.ToString(),
+                    removedText,
                     variableDeclarator.Initializer.GetLocation());
             }
 
