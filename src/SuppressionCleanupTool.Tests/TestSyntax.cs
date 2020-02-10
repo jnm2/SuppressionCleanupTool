@@ -18,6 +18,15 @@ class C
     int f = 4;
 }",
 
+            ["IDE0059"] = @"
+class C
+{
+    public void M()
+    {
+        var i = 1;
+    }
+}",
+
             ["IDE0062"] = @"
 class C
 {

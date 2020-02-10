@@ -12,6 +12,7 @@ namespace SuppressionCleanupTool.Tests
     {
         [TestCase("IDE0031")]
         [TestCase("IDE0044")]
+        [TestCase("IDE0059")]
         [TestCase("IDE0062")]
         public static async Task Document_options_are_provided_so_that_analyzers_return_diagnostics_as_normal(string diagnosticId)
         {

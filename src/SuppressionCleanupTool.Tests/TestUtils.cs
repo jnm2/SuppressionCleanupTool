@@ -8,9 +8,11 @@ namespace SuppressionCleanupTool.Tests
         {
             var workspace = new AdhocWorkspace();
 
-            document = workspace
+            var project = workspace
                 .AddProject("TestProject", LanguageNames.CSharp)
-                .AddDocument("TestDocument.cs", documentText);
+                .AddMetadataReference(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+
+            document = project.AddDocument("TestDocument.cs", documentText);
 
             return workspace;
         }
