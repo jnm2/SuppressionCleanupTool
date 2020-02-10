@@ -21,7 +21,7 @@ namespace SuppressionCleanupTool
             var syntaxRoot = await document.GetSyntaxRootAsync();
             if (syntaxRoot is null) return document;
 
-            var suppressions = FindSuppressions(syntaxRoot);
+            var suppressions = FindSuppressions(syntaxRoot).ToList();
 
             syntaxRoot = syntaxRoot.TrackNodes(suppressions);
 
