@@ -6,6 +6,38 @@ namespace SuppressionCleanupTool.Tests
     {
         public static IReadOnlyDictionary<string, string> ByTriggeredDiagnosticId { get; } = new Dictionary<string, string>
         {
+            ["CS0067"] = @"
+class C
+{
+    event System.Action e;
+}",
+
+            ["CS0169"] = @"
+class C
+{
+    int f;
+}",
+
+            ["CS0414"] = @"
+class C
+{
+    int f = 1;
+}",
+
+            ["CS0649"] = @"
+class C
+{
+    int f;
+
+    int M() => f;
+}",
+
+            ["IDE0044"] = @"
+class C
+{
+    int f = 4;
+}",
+
             ["IDE0031"] = @"
 class C
 {

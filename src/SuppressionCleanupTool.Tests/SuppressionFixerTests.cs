@@ -54,6 +54,23 @@ class C
             await FixAllInSingleDocumentWorkspaceAsync(documentText);
         }
 
+        // See https://github.com/dotnet/roslyn/blob/ddcf4de181446b3ded06151b6f31c83612e7ad7a/src/Compilers/CSharp/Portable/Symbols/Source/SourceAssemblySymbol.cs#L2435-L2548
+        [TestCase("CS0067")]
+        [TestCase("CS0169")]
+        [TestCase("CS0414")]
+        [TestCase("CS0649")]
+        public static async Task CS_diagnostics_requiring_compilation_of_all_method_bodies_should_be_evaluated_in_updated_document(string diagnosticId)
+        {
+            var pragmaLine = "#pragma warning disable " + diagnosticId;
+            var syntaxTriggeringDiagnostic = TestSyntax.ByTriggeredDiagnosticId[diagnosticId];
+
+            var syntaxWithSuppressedDiagnostic = pragmaLine + Environment.NewLine + syntaxTriggeringDiagnostic;
+            var syntaxWithUnnecessaryPragma = pragmaLine + Environment.NewLine + syntaxWithSuppressedDiagnostic;
+
+            var result = await FixAllInSingleDocumentWorkspaceAsync(syntaxWithUnnecessaryPragma);
+            result.ShouldBe(syntaxWithSuppressedDiagnostic);
+        }
+
         private static string RemoveSingleSuppression(string compilationUnit, string syntaxToRemove)
         {
             var syntaxRoot = SyntaxFactory.ParseCompilationUnit(compilationUnit);
