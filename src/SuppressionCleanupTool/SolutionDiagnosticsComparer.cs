@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using System;
@@ -7,7 +7,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using TaskTupleAwaiter;
 using OccurrencesByDiagnosticId = System.Collections.Immutable.ImmutableDictionary<string, int>;
 
 namespace SuppressionCleanupTool
@@ -115,7 +114,7 @@ namespace SuppressionCleanupTool
                 var analyzerOptions = Utils.TryCreateWorkspaceAnalyzerOptions(document.Project.AnalyzerOptions, document.Project.Solution)
                     ?? throw new NotSupportedException("Cannot expose document options to analyzers to allow them to run as normal.");
 
-                var compilationWithAnalyzers = semanticModel.Compilation.WithAnalyzers(analyzers, analyzerOptions, cancellationToken);
+                var compilationWithAnalyzers = semanticModel.Compilation.WithAnalyzers(analyzers, analyzerOptions);
 
                 var (syntaxDiagnostics, semanticDiagnostics) = await (
                     compilationWithAnalyzers.GetAnalyzerSyntaxDiagnosticsAsync(semanticModel.SyntaxTree, cancellationToken),
